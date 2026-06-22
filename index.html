@@ -10,16 +10,25 @@
 <body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
 
     <div class="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
-        <!-- Header -->
-        <header class="mb-8 border-b border-gray-800 pb-6">
-            <h1 class="text-3xl font-extrabold text-blue-400 flex items-center gap-2">
-                <i data-lucide="cloud-lightning"></i> KC7 Storm Query Guide
-            </h1>
-            <p class="text-gray-400 mt-2">Log, search, and copy working Storm statements for the "A Storm Is Brewing" investigation.</p>
+        <header class="mb-8 border-b border-gray-800 pb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-blue-400 flex items-center gap-2">
+                    <i data-lucide="cloud-lightning"></i> KC7 Storm Query Guide
+                </h1>
+                <p class="text-gray-400 mt-2">Log, search, and backup working Storm statements for the "A Storm Is Brewing" investigation.</p>
+            </div>
+            <div class="flex gap-2 w-full sm:w-auto">
+                <button onclick="exportQueries()" class="flex-1 sm:flex-none bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-semibold py-2 px-3 rounded-lg text-sm transition flex items-center justify-center gap-1.5" title="Export queries to a JSON file">
+                    <i data-lucide="download" class="w-4 h-4 text-blue-400"></i> Export Backup
+                </button>
+                <label class="flex-1 sm:flex-none bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-semibold py-2 px-3 rounded-lg text-sm transition flex items-center justify-center gap-1.5 cursor-pointer" title="Import queries from a JSON backup">
+                    <i data-lucide="upload" class="w-4 h-4 text-emerald-400"></i> Import Backup
+                    <input type="file" id="importFile" accept=".json" class="hidden" onchange="importQueries(this)">
+                </label>
+            </div>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Left: Add Query Form -->
             <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 h-fit">
                 <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-gray-200">
                     <i data-lucide="plus-circle" class="text-blue-400"></i> Log New Query
@@ -41,7 +50,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Storm Query Syntax</label>
-                        <textarea id="syntax" required rows="3" placeholder='inet:email:message:to="target@envolvelabs.com"' class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-mono text-emerald-400 font-mono focus:outline-none focus:border-blue-500"></textarea>
+                        <textarea id="syntax" required rows="3" placeholder='inet:email:message:to="target@envolvelabs.com"' class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 font-mono text-emerald-400 focus:outline-none focus:border-blue-500"></textarea>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Notes / Pivot Logic</label>
@@ -53,13 +62,11 @@
                 </form>
             </div>
 
-            <!-- Right: Search & Saved Queries List -->
             <div class="lg:col-span-2 space-y-6">
-                <!-- Filter Bar -->
                 <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 flex flex-col sm:flex-row gap-4">
                     <div class="flex-1 relative">
                         <i data-lucide="search" class="absolute left-3 top-2.5 text-gray-500 w-5 h-5"></i>
-                        <input type="text" id="searchBar" placeholder="Search keywords or titles..." class="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                        <input type="text" id="searchBar" placeholder="Search keywords, categories, or text..." class="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-blue-500">
                     </div>
                     <select id="filterCategory" class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
                         <option value="All">All Categories</option>
@@ -71,14 +78,13 @@
                     </select>
                 </div>
 
-                <!-- Query List container -->
                 <div id="queryList" class="space-y-4"></div>
             </div>
         </div>
     </div>
 
     <script>
-        // Default Seed Data matching KC7 themes
+        // Seed Initial Data if storage empty
         const defaultQueries = [
             { id: 1, title: 'Lift email recipients by domain', category: 'Email', syntax: 'inet:email:message:to*="@envolvelabs.com"', notes: 'Good baseline for identifying initial access phishing targets.' },
             { id: 2, title: 'Pivot from FQDN to DNS resolution', category: 'Domain/DNS', syntax: 'inet:fqdn=badguy.com -> inet:dns:lookahead', notes: 'Finds IP addresses tied to the infrastructure.' },
@@ -119,7 +125,7 @@
                             <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-700 text-blue-300 border border-gray-600">${q.category}</span>
                         </div>
                         ${q.notes ? `<p class="text-sm text-gray-400 mb-3 italic">${q.notes}</p>` : ''}
-                        <div class="relative bg-gray-950 p-3 rounded-lg border border-gray-800 group font-mono text-emerald-400 break-all pr-12 text-sm select-all">
+                        <div class="relative bg-gray-950 p-3 rounded-lg border border-gray-800 font-mono text-emerald-400 break-all pr-12 text-sm select-all">
                             ${q.syntax}
                             <button onclick="copyQuery(this, \`${btoa(q.syntax)}\`)" class="absolute right-2 top-2 p-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition" title="Copy to Clipboard">
                                 <i data-lucide="copy" class="w-4 h-4"></i>
@@ -157,32 +163,5 @@
         window.copyQuery = function(btn, encodedSyntax) {
             const syntax = atob(encodedSyntax);
             navigator.clipboard.writeText(syntax).then(() => {
-                const icon = btn.querySelector('i');
                 btn.classList.add('bg-emerald-900/50', 'text-emerald-400');
-                btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i>`;
-                lucide.createIcons();
-                setTimeout(() => {
-                    btn.classList.remove('bg-emerald-900/50', 'text-emerald-400');
-                    btn.innerHTML = `<i data-lucide="copy" class="w-4 h-4"></i>`;
-                    lucide.createIcons();
-                }, 1500);
-            });
-        }
-
-        window.deleteQuery = function(id) {
-            if(confirm('Remove this statement from your tracker?')) {
-                queries = queries.filter(q => q.id !== id);
-                saveToStorage();
-                renderQueries();
-            }
-        }
-
-        // Live filtering listeners
-        document.getElementById('searchBar').addEventListener('input', renderQueries);
-        document.getElementById('filterCategory').addEventListener('change', renderQueries);
-
-        // Initial setup
-        renderQueries();
-    </script>
-</body>
-</html>
+                btn.innerHTML = `<i data-luc
