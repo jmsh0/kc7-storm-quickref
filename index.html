@@ -92,7 +92,7 @@
         ];
 
         let localData = JSON.parse(localStorage.getItem('kc7_storm_queries'));
-        // If local storage is empty or contains an empty array, load the default seed data
+        // Self-heal logic: If storage is empty or blank array, use defaults
         let queries = (localData && localData.length > 0) ? localData : defaultQueries;
         
         function saveToStorage() {
@@ -166,4 +166,77 @@
             const syntax = atob(encodedSyntax);
             navigator.clipboard.writeText(syntax).then(() => {
                 btn.classList.add('bg-emerald-900/50', 'text-emerald-400');
-                btn.innerHTML = `<i data-luc
+                btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i>`;
+                lucide.createIcons();
+                setTimeout(() => {
+                    btn.classList.remove('bg-emerald-900/50', 'text-emerald-400');
+                    btn.innerHTML = `<i data-lucide="copy" class="w-4 h-4"></i>`;
+                    lucide.createIcons();
+                }, 1500);
+            });
+        }
+
+        window.deleteQuery = function(id) {
+            if(confirm('Remove this statement from your tracker?')) {
+                queries = queries.filter(q => q.id !== id);
+                saveToStorage();
+                renderQueries();
+            }
+        }
+
+        // --- Export Feature ---
+        window.exportQueries = function() {
+            if (queries.length === 0) {
+                alert("No queries available to export.");
+                return;
+            }
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(queries, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `kc7_storm_backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        // --- Import Feature ---
+        window.importQueries = function(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        if (confirm(`Found ${imported.length} statements. Merge them into your existing list? (Click 'Cancel' to overwrite your current view completely)`)) {
+                            const existingIds = new Set(queries.map(q => q.id));
+                            imported.forEach(q => {
+                                if (!existingIds.has(q.id)) queries.push(q);
+                            });
+                        } else {
+                            queries = imported;
+                        }
+                        saveToStorage();
+                        renderQueries();
+                        alert("Statements imported successfully!");
+                    } else {
+                        alert("Invalid backup file structure.");
+                    }
+                } catch (err) {
+                    alert("Error parsing backup file. Make sure it's a valid JSON file.");
+                }
+                input.value = ''; 
+            };
+            reader.readAsText(file);
+        }
+
+        // Live filtering listeners
+        document.getElementById('searchBar').addEventListener('input', renderQueries);
+        document.getElementById('filterCategory').addEventListener('change', renderQueries);
+
+        // Initial build
+        renderQueries();
+    </script>
+</body>
+</html>
